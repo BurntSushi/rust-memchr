@@ -25,6 +25,7 @@ jobs:
         - stable
         - stable-32
         - stable-mips
+        - wasm
         - beta
         - nightly
         - macos
@@ -60,6 +61,10 @@ jobs:
         - build: win-gnu
           os: windows-2019
           rust: stable-x86_64-gnu
+        - build: wasm
+          os: ubuntu-18.04
+          rust: nightly-x86_64-gnu # waiting for wasm simd to hit stable
+          wasm: true
     steps:
     - name: Checkout repository
       uses: actions/checkout@v1
@@ -79,6 +84,16 @@ jobs:
         cargo install --git https://github.com/rust-embedded/cross
         echo "CARGO=cross" >> $GITHUB_ENV
         echo "TARGET=--target ${{ matrix.target }}" >> $GITHUB_ENV
+    - name: Download Wasmtime
+      if: matrix.wasm
+      run: |
+        rustup target add wasm32-wasi
+        echo "CARGO_BUILD_TARGET=wasm32-wasi" >> $GITHUB_ENV
+        echo "RUSTFLAGS=-Ctarget-feature=+simd128" >> $GITHUB_ENV
+        curl -LO https://github.com/bytecodealliance/wasmtime/releases/download/v0.28.0/wasmtime-v0.28.0-x86_64-linux.tar.xz
+        tar xvf wasmtime-v0.28.0-x86_64-linux.tar.xz
+        echo `pwd`/wasmtime-v0.28.0-x86_64-linux >> $GITHUB_PATH
+        echo "CARGO_TARGET_WASM32_WASI_RUNNER=wasmtime run --enable-simd --" >> $GITHUB_ENV
     - name: Show command used for Cargo
       run: |
         echo "cargo command is: ${{ env.CARGO }}"
